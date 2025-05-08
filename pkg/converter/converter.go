@@ -22,6 +22,11 @@ func ConvertPNGsToGIF(inputFiles []string, outputFile string, delay int, debug b
 		return fmt.Errorf("no input files specified")
 	}
 
+	// Validate delay
+	if delay < 0 {
+		return fmt.Errorf("delay must be non-negative")
+	}
+
 	// Create a channel for progress updates
 	progressChan := ui.RunUI(debug, len(inputFiles))
 
@@ -30,18 +35,9 @@ func ConvertPNGsToGIF(inputFiles []string, outputFile string, delay int, debug b
 	var images []*image.Paletted
 	var err error
 
-	// Create a basic color palette
-	palette := []color.Color{
-		color.RGBA{0, 0, 0, 255},       // Black
-		color.RGBA{255, 255, 255, 255}, // White
-		color.RGBA{255, 0, 0, 255},     // Red
-		color.RGBA{0, 255, 0, 255},     // Green
-		color.RGBA{0, 0, 255, 255},     // Blue
-		color.RGBA{255, 255, 0, 255},   // Yellow
-		color.RGBA{255, 0, 255, 255},   // Magenta
-		color.RGBA{0, 255, 255, 255},   // Cyan
-		color.RGBA{128, 128, 128, 255}, // Gray
-	}
+	// Create a color map to store unique colors
+	colorMap := make(map[color.Color]bool)
+	var palette []color.Color
 
 	// Process each image
 	for i, inputFile := range inputFiles {
@@ -67,6 +63,97 @@ func ConvertPNGsToGIF(inputFiles []string, outputFile string, delay int, debug b
 		// If this is the first image, store its bounds
 		if i == 0 {
 			firstImgBounds = img.Bounds()
+		}
+
+		// Resize image if dimensions don't match
+		if img.Bounds().Dx() != firstImgBounds.Dx() || img.Bounds().Dy() != firstImgBounds.Dy() {
+			resized := image.NewRGBA(firstImgBounds)
+			xdraw.CatmullRom.Scale(resized, resized.Bounds(), img, img.Bounds(), xdraw.Over, nil)
+			img = resized
+		}
+
+		// Sample colors from the image
+		bounds := img.Bounds()
+		for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+			for x := bounds.Min.X; x < bounds.Max.X; x++ {
+				colorMap[img.At(x, y)] = true
+			}
+		}
+	}
+
+	// Convert color map to palette
+	for c := range colorMap {
+		palette = append(palette, c)
+	}
+
+	// Ensure we have at least one color in the palette
+	if len(palette) == 0 {
+		// Add basic colors if no colors were found
+		palette = []color.Color{
+			color.RGBA{0, 0, 0, 255},       // Black
+			color.RGBA{255, 255, 255, 255}, // White
+		}
+	}
+
+	// If we have too many colors, reduce the palette
+	if len(palette) > 256 {
+		// Sort colors by frequency
+		colorFreq := make(map[color.Color]int)
+		for _, inputFile := range inputFiles {
+			file, err := os.Open(inputFile)
+			if err != nil {
+				return fmt.Errorf("error opening file %s: %v", inputFile, err)
+			}
+			defer file.Close()
+
+			img, err := png.Decode(file)
+			if err != nil {
+				return fmt.Errorf("error decoding PNG file %s: %v", inputFile, err)
+			}
+
+			bounds := img.Bounds()
+			for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+				for x := bounds.Min.X; x < bounds.Max.X; x++ {
+					colorFreq[img.At(x, y)]++
+				}
+			}
+		}
+
+		// Sort colors by frequency
+		type colorCount struct {
+			color color.Color
+			count int
+		}
+		var sortedColors []colorCount
+		for c, count := range colorFreq {
+			sortedColors = append(sortedColors, colorCount{c, count})
+		}
+		sort.Slice(sortedColors, func(i, j int) bool {
+			return sortedColors[i].count > sortedColors[j].count
+		})
+
+		// Take the most frequent colors
+		palette = make([]color.Color, 0, 256)
+		for i := 0; i < len(sortedColors) && i < 256; i++ {
+			palette = append(palette, sortedColors[i].color)
+		}
+	}
+
+	if debug {
+		fmt.Printf("Generated palette with %d colors\n", len(palette))
+	}
+
+	// Process each image again with the final palette
+	for _, inputFile := range inputFiles {
+		file, err := os.Open(inputFile)
+		if err != nil {
+			return fmt.Errorf("error opening file %s: %v", inputFile, err)
+		}
+		defer file.Close()
+
+		img, err := png.Decode(file)
+		if err != nil {
+			return fmt.Errorf("error decoding PNG file %s: %v", inputFile, err)
 		}
 
 		// Resize image if dimensions don't match
