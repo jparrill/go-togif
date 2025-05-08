@@ -101,11 +101,18 @@ func ConvertPNGsToGIF(inputFiles []string, outputFile string, delay int, debug b
 	}
 	defer outFile.Close()
 
+	// Get absolute path for the output file
+	absOutputPath, err := filepath.Abs(outputFile)
+	if err != nil {
+		return fmt.Errorf("error getting absolute path: %v", err)
+	}
+
 	// Update progress for final step
 	progressChan <- ui.ProgressMsg{
 		CurrentFile: "Creating output GIF",
 		Processed:   len(inputFiles),
 		Total:       len(inputFiles),
+		OutputFile:  absOutputPath,
 	}
 
 	// Encode the GIF

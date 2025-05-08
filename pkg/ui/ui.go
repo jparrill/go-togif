@@ -23,6 +23,7 @@ type ProgressMsg struct {
 	CurrentFile string
 	Processed   int
 	Total       int
+	OutputFile  string
 }
 
 type model struct {
@@ -35,6 +36,7 @@ type model struct {
 	done           bool
 	err            error
 	processedFiles []string
+	outputFile     string
 }
 
 type tickMsg time.Time
@@ -97,6 +99,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if msg.Processed >= msg.Total {
 			m.done = true
+			m.outputFile = msg.OutputFile
 			return m, tea.Quit
 		}
 		return m, m.progress.IncrPercent(1.0 / float64(m.totalFiles))
@@ -130,9 +133,17 @@ func (m model) View() string {
 				indexStr := fmt.Sprintf("%*d", maxIndexWidth, i+1)
 				s.WriteString(fmt.Sprintf("%s. %s\n", indexStr, displayFile))
 			}
+			if m.outputFile != "" {
+				s.WriteString(fmt.Sprintf("\nGIF file generated at: %s\n", m.outputFile))
+			}
 			return s.String()
 		}
-		return fmt.Sprintf("\nDone! Processed %d files.\n", m.totalFiles)
+		var s strings.Builder
+		s.WriteString(fmt.Sprintf("\nDone! Processed %d files.\n", m.totalFiles))
+		if m.outputFile != "" {
+			s.WriteString(fmt.Sprintf("GIF file generated at: %s\n", m.outputFile))
+		}
+		return s.String()
 	}
 
 	var s strings.Builder
