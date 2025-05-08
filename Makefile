@@ -16,6 +16,7 @@ build:
 clean:
 	@echo "Cleaning..."
 	@rm -rf $(GOBIN)
+	@rm -rf dist/
 	@go clean
 
 test:
@@ -23,8 +24,15 @@ test:
 	@go test -v ./...
 
 release:
-	@echo "Releasing..."
-	@goreleaser release --rm-dist
+	@if [ -z "$(GITHUB_TOKEN)" ]; then \
+		echo "Error: GITHUB_TOKEN is not set. Please export it first with:"; \
+		echo "export GITHUB_TOKEN=<your_token_here> make release"; \
+		exit 1; \
+	fi
+	@echo "Cleaning previous release artifacts..."
+	@rm -rf dist/
+	@echo "Creating release..."
+	@goreleaser release
 
 release-snapshot:
 	@echo "Creating release snapshot..."
