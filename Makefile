@@ -1,4 +1,4 @@
-.PHONY: build clean test release
+.PHONY: build clean test release release-local
 
 # Build variables
 BINARY_NAME=go-togif
@@ -33,6 +33,12 @@ release:
 	@rm -rf dist/
 	@echo "Creating release..."
 	@goreleaser release
+
+release-local:
+	@echo "Cleaning previous release artifacts..."
+	@rm -rf dist/
+	@echo "Creating local release snapshot..."
+	@goreleaser release --snapshot --clean
 
 release-snapshot:
 	@echo "Creating release snapshot..."

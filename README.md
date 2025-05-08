@@ -97,16 +97,7 @@ make release
 
 ## AI Assistance
 
-This project was developed with the assistance of an AI coding companion (Claude 3.5 Sonnet). The AI helped with:
-
-- Project structure and initial setup
-- Implementation of core functionality
-- Code optimization and best practices
-- Documentation and README creation
-- UI/UX improvements
-- Bug fixes and feature enhancements
-
-While the AI provided guidance and suggestions, all code has been reviewed, tested, and validated to ensure quality and functionality.
+This project was developed with the assistance of an AI coding companion (Claude 3.5 Sonnet).
 
 ## License
 
