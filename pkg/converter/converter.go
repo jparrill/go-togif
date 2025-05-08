@@ -118,9 +118,6 @@ func ConvertPNGsToGIF(inputFiles []string, outputFile string, delay int, debug b
 
 // ExpandInputPattern expands a glob pattern or regex into a list of matching PNG files
 func ExpandInputPattern(pattern string) ([]string, error) {
-	// Check if the pattern is a regex (starts with ^ or contains regex special chars)
-	isRegex := strings.HasPrefix(pattern, "^")
-
 	// Get the directory and base pattern
 	dir := "."
 	basePattern := pattern
@@ -135,33 +132,6 @@ func ExpandInputPattern(pattern string) ([]string, error) {
 	}
 
 	var matches []string
-
-	if isRegex {
-		// Compile the regex pattern
-		re, err := regexp.Compile(pattern)
-		if err != nil {
-			return nil, fmt.Errorf("invalid regex pattern: %v", err)
-		}
-
-		// Read all files in the directory
-		files, err := os.ReadDir(dir)
-		if err != nil {
-			return nil, fmt.Errorf("error reading directory: %v", err)
-		}
-
-		for _, file := range files {
-			if !file.IsDir() && strings.HasSuffix(strings.ToLower(file.Name()), ".png") {
-				fullPath := filepath.Join(dir, file.Name())
-				if re.MatchString(fullPath) {
-					matches = append(matches, fullPath)
-				}
-			}
-		}
-		if len(matches) > 0 {
-			sort.Strings(matches)
-			return matches, nil
-		}
-	}
 
 	// Try glob pattern first
 	globMatches, err := filepath.Glob(filepath.Join(dir, basePattern))
@@ -178,7 +148,33 @@ func ExpandInputPattern(pattern string) ([]string, error) {
 		}
 	}
 
-	// If glob pattern didn't work, read the directory manually
+	// If glob pattern didn't work, try regex
+	if strings.HasPrefix(basePattern, "^") || strings.ContainsAny(basePattern, ".*+?[](){}|") {
+		re, err := regexp.Compile(basePattern)
+		if err != nil {
+			return nil, fmt.Errorf("invalid regex pattern: %v", err)
+		}
+
+		// Read all files in the directory
+		files, err := os.ReadDir(dir)
+		if err != nil {
+			return nil, fmt.Errorf("error reading directory: %v", err)
+		}
+
+		for _, file := range files {
+			if !file.IsDir() && strings.HasSuffix(strings.ToLower(file.Name()), ".png") {
+				if re.MatchString(file.Name()) {
+					matches = append(matches, filepath.Join(dir, file.Name()))
+				}
+			}
+		}
+		if len(matches) > 0 {
+			sort.Strings(matches)
+			return matches, nil
+		}
+	}
+
+	// If no matches found, read the directory manually for simple patterns
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, fmt.Errorf("error reading directory: %v", err)

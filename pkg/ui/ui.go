@@ -92,7 +92,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ProgressMsg:
 		m.processed = msg.Processed
 		m.currentFile = msg.CurrentFile
-		if msg.Processed > 0 && msg.Processed <= m.totalFiles {
+		if msg.Processed < m.totalFiles {
 			m.processedFiles = append(m.processedFiles, msg.CurrentFile)
 		}
 		if msg.Processed >= msg.Total {
